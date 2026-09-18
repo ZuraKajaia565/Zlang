@@ -1,5 +1,5 @@
 section .data
-input db "10+20+30", 0
+input db "10+2*3", 0
 
 section .bss
    buffer resb 32
@@ -11,29 +11,11 @@ global _start
 _start:
     mov rbx, input
 
-    call parse_number
+    call parse_expression
+
     mov r12, rax
-
-.loop:
-    call skip_space
-
-    call parse_operator
-
-    cmp rax, 0
-    je .finish
-
-    mov r11, rax
-
-    call skip_space
-
-    call parse_number
-
-    call evaluate
-
-    jmp .loop
-
-.finish:
     call print_number
+
     jmp done
 
 next:
@@ -89,6 +71,78 @@ parse_number:
 .done:
     mov rax, rdx
     ret
+
+
+parse_term:
+    call parse_number
+    mov r12, rax
+
+.loop:
+    call skip_space
+
+    mov al, [rbx]
+
+    cmp al, '*'
+    je .multiply
+
+    cmp al, '/'
+    je .divide
+
+    mov rax, r12
+    ret
+
+.multiply:
+    inc rbx
+    call skip_space
+    call parse_number
+    imul r12, rax
+    jmp .loop
+
+.divide:
+    inc rbx
+    call skip_space
+    call parse_number
+
+    mov rcx, rax
+    mov rax, r12
+    xor rdx, rdx
+    div rcx
+    mov r12, rax
+
+    jmp .loop
+
+parse_expression:
+    call parse_term
+    mov r13, rax
+
+.loop:
+    call skip_space
+
+    mov al, [rbx]
+
+    cmp al, '+'
+    je .add
+
+    cmp al, '-'
+    je .subtract
+
+    mov rax, r13
+    ret
+
+.add:
+    inc rbx
+    call skip_space
+    call parse_term
+    add r13, rax
+    jmp .loop
+
+.subtract:
+    inc rbx
+    call skip_space
+    call parse_term
+    sub r13, rax
+    jmp .loop
+
 
 parse_operator:
     mov al, [rbx]
@@ -202,15 +256,10 @@ print_number:
 
     mov rax, 1
     mov rdi, 1
-    mov rdx, 1
     syscall
 
-    inc rbx
-    dec rcx
-    cmp rcx, 0
-    jne .print
-
     ret
+
 
 print_char:
       push rdi
